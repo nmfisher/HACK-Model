@@ -5,12 +5,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 import json
 import roma
-import helper
+from shared.mesh_io import read_obj
 
 bones = json.load(open("model/bones_neutral.json"))
 bone_names = list(bones.keys())
 
-obj_template = helper.read_obj(r"model/000_generic_neutral_mesh_newuv.obj")
+obj_template = read_obj(r"model/000_generic_neutral_mesh_newuv.obj")
 
 for name in bones:
 
@@ -98,11 +98,11 @@ def uv1d_construct_delta(uv1d, tau):
     grid = getattr(uv1d_construct_delta, "grid", None)
     if grid is None:
         obj = obj_template
-        uv = obj.vts
+        uv = obj.uvs
         uv[:, 1] = 1 - uv[:, 1]
         uv = uv * 2 - 1
-        fv = obj.fvs
-        fvt = obj.fvts
+        fv = obj.faces
+        fvt = obj.face_uvs
         grid = np.ones((1, 1, 14062, 2)) * 2
         for i in range(len(fv)):
             for j in range(4):
@@ -150,7 +150,7 @@ class HACK(nn.Module):
         W = W / W.sum(axis=0, keepdims=True)
         self.register_buffer("W", W, persistent=False)
 
-        T = torch.tensor(obj_template.vs, dtype=torch.float32)  # [14062, 3]
+        T = torch.tensor(obj_template.vertices, dtype=torch.float32)  # [14062, 3]
         self.register_buffer("T", T)
 
         P = torch.zeros(N_bones, 3, 3, 14062, 3)  # [N_bones, 3, 3, 14062, 3]
