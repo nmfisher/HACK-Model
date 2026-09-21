@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hack-model"
+version = "0.1.0"
+description = "HACK parametric head and neck model and model assets"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = ["numpy"]
+
+[project.optional-dependencies]
+model = ["torch>=2.0", "opencv-python", "roma"]
+examples = ["torch>=2.0", "opencv-python", "roma", "tqdm", "notebook"]
+
+[project.urls]
+Repository = "https://github.com/nmfisher/HACK-Model"
+Upstream = "https://github.com/ZoneLikeWonderland/HACK-Model"
+
+# Keep the upstream asset layout; this checkout is the hack_model package.
+[tool.setuptools]
+packages = ["hack_model"]
+
+[tool.setuptools.package-dir]
+hack_model = "."
+
+[tool.setuptools.package-data]
+hack_model = ["model/*.json", "model/*.obj", "model/*.npy", "model/*.png"]

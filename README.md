@@ -17,6 +17,62 @@ HACK (Head-And-neCK) is a novel parametric model for constructing the head and c
 | PyTorch module         | :heavy_check_mark: |
 | Texture basis          | :soon:             |
 
+## Installation and package API
+
+Install the asset package from this fork (no PyTorch required):
+
+```bash
+python -m pip install "hack-model @ git+https://github.com/nmfisher/HACK-Model.git"
+```
+
+For the PyTorch model, install the `model` extra. For development from a local
+checkout, use an editable install:
+
+```bash
+python -m pip install -e '.[model]'
+# For the notebook, use: python -m pip install -e '.[examples]'
+```
+
+The wheel includes all files under `model/`. Imports and model construction
+work from any working directory and do not require `metahuman_automation`.
+Consumers should locate assets through the package API:
+
+```python
+from hack_model import get_asset_root, get_model_dir
+
+model_dir = get_model_dir()
+shape_path = model_dir / "S.npy"
+template_path = model_dir / "000_generic_neutral_mesh.obj"
+# For existing consumers expecting a directory containing model/:
+hack_dir = get_asset_root()
+```
+
+Only NumPy is required for asset consumers. The PyTorch API loads its optional
+dependencies when first accessed:
+
+```python
+from hack_model import HACK, load_pca, get_model_dir
+
+hack = HACK()
+shape = load_pca(get_model_dir() / "S.npy")
+```
+
+`from hack_model import helper` provides the upstream OBJ reader/writer. The
+reader preserves vertex order, polygon topology, and per-corner UV indices.
+There are no imports from the consuming application or `sys.path` changes.
+
+Applications can declare `hack-model @ git+https://github.com/nmfisher/HACK-Model.git@<commit>`
+as a dependency, replacing `<commit>` with a published commit for reproducible
+installs. Install the base package into Blender's Python for asset-only use.
+Existing `--hack-dir` overrides can continue to point at upstream checkouts;
+use `get_asset_root()` for the installed package's default location.
+
+To run the standalone tests after installation:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
 ## HACK (Head-And-neCK) Model
 The HACK Model consists of a base topology along with definitions of facial landmarks, shape blendshapes, expression blendshapes, cervical joints, and pose blendshapes.
 
@@ -86,14 +142,17 @@ HACK-Model
 |   |-- ts_larynx.npy                       # template larynx shape
 |   |-- weight_map_smooth.npy               # skinning weight
 |-- examples.ipynb  # examples
-|-- hack_model.py   # HACK model definition
-|-- helper.py       # utils  
+|-- __init__.py     # public package API (installed as hack_model)
+|-- assets.py       # working-directory-independent asset paths
+|-- core.py         # optional PyTorch HACK model
+|-- helper.py       # OBJ reader/writer
+|-- pyproject.toml  # package metadata and dependencies
 ```
 
 ## Examples
 
 ### PyTorch model
-See `examples.ipynb` for running examples.
+Install `.[examples]`, then open `examples.ipynb` from this checkout for running examples.
 
 
 ### Blender model

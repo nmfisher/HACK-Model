@@ -5,12 +5,16 @@ import torch.nn as nn
 import torch.nn.functional as F
 import json
 import roma
-from shared.mesh_io import read_obj
+from .helper import read_obj
+from .assets import get_model_dir
 
-bones = json.load(open("model/bones_neutral.json"))
+MODEL_DIR = get_model_dir()
+
+with (MODEL_DIR / "bones_neutral.json").open() as stream:
+    bones = json.load(stream)
 bone_names = list(bones.keys())
 
-obj_template = read_obj(r"model/000_generic_neutral_mesh_newuv.obj")
+obj_template = read_obj(MODEL_DIR / "000_generic_neutral_mesh_newuv.obj")
 
 for name in bones:
 
@@ -57,7 +61,7 @@ def update_L2W_transformation_pose(L2W_transformation_pose, L2P_transformation, 
     if L2W_transformation_pose[ith_bone] is not None:
         return L2W_transformation_pose[ith_bone]
 
-    local_pose_transformation = torch.eye(4, device=pose_matrix.device)[None].repeat(pose_matrix.shape[0], 1, 1)
+    local_pose_transformation = torch.eye(4, device=pose_matrix.device, dtype=pose_matrix.dtype)[None].repeat(pose_matrix.shape[0], 1, 1)
     local_pose_transformation[:, :3, :3] = pose_matrix[:, bone_names.index(name)]
 
     L2W_transformation = L2P_transformation[ith_bone] @ local_pose_transformation
@@ -98,11 +102,11 @@ def uv1d_construct_delta(uv1d, tau):
     grid = getattr(uv1d_construct_delta, "grid", None)
     if grid is None:
         obj = obj_template
-        uv = obj.uvs
+        uv = obj.vts.copy()
         uv[:, 1] = 1 - uv[:, 1]
         uv = uv * 2 - 1
-        fv = obj.faces
-        fvt = obj.face_uvs
+        fv = obj.fvs
+        fvt = obj.fvts
         grid = np.ones((1, 1, 14062, 2)) * 2
         for i in range(len(fv)):
             for j in range(4):
@@ -114,7 +118,7 @@ def uv1d_construct_delta(uv1d, tau):
         grid = torch.tensor(grid).to(uv1d)
         setattr(uv1d_construct_delta, "grid", grid)
 
-    grid = grid + F.pad(tau * 2, [1, 0])[:, None, None, :]
+    grid = grid.to(uv1d) + F.pad(tau * 2, [1, 0])[:, None, None, :]
 
     output = torch.nn.functional.grid_sample(uv1d.expand(grid.shape[0], -1, -1, -1), grid, mode='bilinear', padding_mode="border", align_corners=True)
     return output[:, 0, 0, :, None]
@@ -146,26 +150,26 @@ class HACK(nn.Module):
     def __init__(self):
         super().__init__()
 
-        W = torch.tensor(np.load("model/weight_map_smooth.npy"), dtype=torch.float32)  # [Nb, 14062]
+        W = torch.tensor(np.load(MODEL_DIR / "weight_map_smooth.npy"), dtype=torch.float32)  # [Nb, 14062]
         W = W / W.sum(axis=0, keepdims=True)
         self.register_buffer("W", W, persistent=False)
 
-        T = torch.tensor(obj_template.vertices, dtype=torch.float32)  # [14062, 3]
+        T = torch.tensor(obj_template.vs, dtype=torch.float32)  # [14062, 3]
         self.register_buffer("T", T)
 
         P = torch.zeros(N_bones, 3, 3, 14062, 3)  # [N_bones, 3, 3, 14062, 3]
         self.register_buffer("P", P)
 
-        L = torch.tensor(cv2.imread("model/Lc_mid.png", cv2.IMREAD_GRAYSCALE) / 255, dtype=torch.float32)[None, None]  # [1, 1, 256, 256]
+        L = torch.tensor(cv2.imread(str(MODEL_DIR / "Lc_mid.png"), cv2.IMREAD_GRAYSCALE) / 255, dtype=torch.float32)[None, None]  # [1, 1, 256, 256]
         self.register_buffer("L", L, persistent=False)
 
-        ts = torch.tensor(np.load("model/ts_larynx.npy"), dtype=torch.float32)  # [3]
+        ts = torch.tensor(np.load(MODEL_DIR / "ts_larynx.npy"), dtype=torch.float32)  # [3]
         self.register_buffer("ts", ts, persistent=False)
 
         self.register_buffer("L2P_transformation", L2P_transformation, persistent=False)
         self.register_buffer("W2L_transformation", W2L_transformation, persistent=False)
 
-        blendshapes = torch.tensor(np.load("model/blendshape.npy"), dtype=torch.float32)
+        blendshapes = torch.tensor(np.load(MODEL_DIR / "blendshape.npy"), dtype=torch.float32)
         neutral = blendshapes[:1]
         blendshapes = blendshapes[1:] - neutral
         self.register_buffer("E", blendshapes, persistent=False)

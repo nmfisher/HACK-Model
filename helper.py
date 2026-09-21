@@ -14,7 +14,8 @@ class Obj:
 
 
 def read_obj(obj_path, only_vs=False, tri=False):
-    objfile = open(obj_path, encoding="utf8").read().strip().split("\n")
+    with open(obj_path, encoding="utf8") as stream:
+        objfile = stream.read().strip().split("\n")
     if only_vs:
         obj = Obj()
         obj.vs = np.array([[float(j) for j in i[2:].strip().split()] for i in filter(lambda x:x.startswith("v "), objfile)], np.float32)
@@ -83,7 +84,8 @@ def write_obj(template_path, v: "Nx3", path, only_v=False):
     last_template = getattr(write_obj, "last_template", (None, None))
 
     if last_template[0] != template_path:
-        obj = open(template_path).read().strip().split("\n")
+        with open(template_path) as stream:
+            obj = stream.read().strip().split("\n")
         last_template = (template_path, obj)
         setattr(write_obj, "last_template", last_template)
     obj = last_template[1]
@@ -96,4 +98,5 @@ def write_obj(template_path, v: "Nx3", path, only_v=False):
         nvs = list(filter(lambda x: not x.startswith("v "), obj))
         obj = "\n".join(vs + nvs)
 
-    open(path, "w").write(obj)
+    with open(path, "w") as stream:
+        stream.write(obj)
