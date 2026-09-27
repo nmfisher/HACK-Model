@@ -144,6 +144,7 @@ HACK-Model
 |-- examples.ipynb  # examples
 |-- __init__.py     # public package API (installed as hack_model)
 |-- assets.py       # working-directory-independent asset paths
+|-- identity.py     # NumPy-only identity basis and triangulated topology
 |-- core.py         # optional PyTorch HACK model
 |-- helper.py       # OBJ reader/writer
 |-- pyproject.toml  # package metadata and dependencies
@@ -153,6 +154,26 @@ HACK-Model
 
 ### PyTorch model
 Install `.[examples]`, then open `examples.ipynb` from this checkout for running examples.
+
+### NumPy identity geometry (including Blender)
+
+```python
+import numpy as np
+from hack_model import load_identity_basis
+
+basis = load_identity_basis()  # packaged assets; optional asset_root contains model/
+coefficients = np.zeros(len(basis.vt_std))
+vertices = basis.mean + np.einsum("k,kvc->vc", coefficients, basis.vt_std)
+triangles = basis.faces
+```
+
+This API needs only NumPy, not Torch, OpenCV, Roma or Blender. It returns
+float64 `mean` `(V,3)`, float64 `vt_std` `(K,V,3)` and int32 triangles `(F,3)`
+in native coordinates. Vertex IDs, PCA scale and triangle order are preserved;
+quads are split across the 0–2 diagonal. It does not apply pose, expression,
+normalization or identity sampling. Only load trusted assets: upstream `S.npy`
+contains a pickled dictionary. Malformed shapes, non-finite arrays and
+invalid topology raise `ValueError` rather than silently changing geometry.
 
 
 ### Blender model
